@@ -62,7 +62,7 @@ yer = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul','Aug','Sept','Oct','Nov',
 conn = connectdb()
 df = pd.read_sql('select * from Sample4',conn)
 conn.close()
-df = df[df.columns[1:]]
+# df = df[df.columns[1:]]
 #extract the column names
 col = df.columns
 
