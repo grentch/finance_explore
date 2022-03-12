@@ -432,10 +432,11 @@ if menu =="Load Data into Database":
 
             load_index = []
             for k in range(rge):
-                idx = int(k) + 1
+                idx = int(last_index) + 1
                 load_index.append(str(idx))
 
-            load_df['INDEX'] = last_index
+            load_df['INDEX'] = load_index
+           
             write_pandas( conn,load_df,'SAMPLE1',database='TEST',schema='PUBLIC')
 
             st.write('Data Has been added')
