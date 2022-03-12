@@ -7,18 +7,38 @@ import plotly.express as px
 import sqlite3
 import pymysql
 from sqlalchemy import create_engine
+from snowflake.connector.pandas_tools import write_pandas
+import snowflake.connector
+import sys
 
+try:
+    with open('env.txt','r') as r:
+        details = r.read()
+
+    details = eval(details)
+except:
+    sys.exit()
+    
 def connectdb():
     
-    connection =pymysql.connect(
-        user = 'root',
-        password = '',
-        db = 'test',
-        host = 'localhost',
+#     connection =pymysql.connect(
+#         user = 'root',
+#         password = '',
+#         db = 'test',
+#         host = 'localhost',
 
 
-    )
-    return connection
+#     )
+
+    conn = snowflake.connector.connect(
+                                 user= details['user'],
+                                 password=details['password'],
+                                 account=details['account'],
+                                 database=details['database'],
+                                 schema= details['schema']
+                                )
+    print("success in connecting", conn)
+    return conn
 
 st.set_page_config(page_title="page", layout="wide")
 
@@ -59,13 +79,23 @@ yer = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul','Aug','Sept','Oct','Nov',
 
 #read in csv, instead of querying the database
 #df = pd.read_csv('sample1.csv')
-conn = connectdb()
-df = pd.read_sql('select * from Sample4',conn)
+try:
+    conn = connectdb()
+except:
+    print('error connecting to database')
+    sys.exit()
+    
+df = pd.read_sql('select * from SAMPLE1',conn)
 conn.close()
-df = df[df.columns[1:]]
+#df = df[df.columns[1:]]
 #extract the column names
 col = df.columns
-
+df['CATEGORY'] = df['CATEGORY'].str.replace("'",'')
+df['TRANSACTION_TYPE'] = df['TRANSACTION_TYPE'].str.replace("'",'')
+df['DESCRIPTION'] = df['DESCRIPTION'].str.replace("'",'')
+df['ORIGINAL_DESCRIPTION'] = df['ORIGINAL_DESCRIPTION'].str.replace("'",'')
+df['ACCOUNT_NAME'] = df['ACCOUNT_NAME'].str.replace("'",'')
+df['AMOUNT'] = df['AMOUNT'].astype(float)
 #list to hold unique categories in the data
 categories = [] 
 
@@ -89,7 +119,7 @@ df['Day'] = df[col[0]].dt.day
 df['Year'] = df[col[0]].dt.year
 
 #drop columns that doesnt have value/interest
-df = df.drop(['DESCRIPTION', 'ORIGINAL_DESCRIPTION'],axis=1)
+#df = df.drop(['DESCRIPTION', 'ORIGINAL_DESCRIPTION'],axis=1)
 
 # #create bins
 # bins = [0,10,20,30,40,50,60,70,80,90]
@@ -171,7 +201,7 @@ if menu == "Main":
         two_a = round(lastest_month_df[lastest_month_df['TRANSACTION_TYPE']=='credit']['AMOUNT'].sum(),2)
         last_two_a = round(last_month_df[last_month_df['TRANSACTION_TYPE']=='credit']['AMOUNT'].sum(),2)
         if last_two_a != 0.0:
-            difference = round(two_a/last_two_a,2)
+            difference = round(two_a-last_two_a,2)
         else:
             difference = two_a
         st.metric(label='Total Credit',value=two_a,delta=f"{difference}")
@@ -252,21 +282,22 @@ if menu == "Main":
             dff.idx_month = dff.idx_month.astype('category')
             dff.idx_month.cat.set_categories(yer,inplace=True)                                         
                                              
-            dff = dff.sort_values(by=['idx_month','idx_year'])
-            fig = px.bar(dff,'period','AMOUNT')
+            dff = dff.sort_values(by=['idx_year','idx_month'])
+            fig = px.bar(dff,'period','AMOUNT',title="Sum Debit for the recent 5 months completed months")
             st.plotly_chart(fig, use_container_width=False, sharing="streamlit")
 
-            col1, col2 = st.columns(2)
+            #col1, col2 = st.columns(2)
+            
             new_mask = mask[['CATEGORY','AMOUNT']]
-            fd = new_mask.groupby(['CATEGORY']).sum().sort_values(by='AMOUNT',ascending=False).reset_index()
+            fd = new_mask.groupby(['CATEGORY']).sum().sort_values(by='AMOUNT',ascending=False).reset_index().head(10)
             fd = fd.sort_values(by=['AMOUNT'],ascending=False)
-            fig = px.bar(fd,'CATEGORY','AMOUNT')
+            fig = px.bar(fd,'CATEGORY','AMOUNT',title="Top 10 categories that had the highest Debit for the recent 5 months completed months")
             st.plotly_chart(fig, use_container_width=False, sharing="streamlit")
-           
+
             new_mask = later_mask[['CATEGORY','AMOUNT']]
-            fd = new_mask.groupby(['CATEGORY']).sum().sort_values(by='AMOUNT',ascending=False).reset_index()
+            fd = new_mask.groupby(['CATEGORY']).sum().sort_values(by='AMOUNT',ascending=False).reset_index().head(10)
             fd = fd.sort_values(by=['AMOUNT'],ascending=False)
-            fig = px.bar(fd,'CATEGORY','AMOUNT')
+            fig = px.bar(fd,'CATEGORY','AMOUNT',title="Top 10 categories that had the highest Debit for the chosen months")
             st.plotly_chart(fig, use_container_width=False, sharing="streamlit")
  
         except:
@@ -333,7 +364,7 @@ if menu == "Explore Categories":
             dff.idx_month = dff.idx_month.astype('category')
             dff.idx_month.cat.set_categories(yer,inplace=True)                                         
                                              
-            dff = dff.sort_values(by=['idx_month','idx_year'])
+            dff = dff.sort_values(by=['idx_year','idx_month'],ascending=[True,True])
             fig = px.bar(dff, x="period", y="AMOUNT", color="CATEGORY", title="Sum Debit for the last 5 months")
             
             st.plotly_chart(fig, use_container_width=False, sharing="streamlit")
@@ -364,8 +395,8 @@ if menu == "Explore raw data":
     else:
         new_df = df
     new_df = new_df[(new_df['DATE'] > current_date_start) & (new_df['DATE'] <= current_date_end)].sort_values(by='AMOUNT',ascending=False)
-   
-    new_df = new_df[['DATE','AMOUNT','TRANSACTION_TYPE','CATEGORY','ACCOUNT_NAME']]
+    new_df['DATE'] = [str(i).split(' ')[0] for i in new_df['DATE']]
+    new_df = new_df[['DATE','DESCRIPTION','ORIGINAL_DESCRIPTION','AMOUNT','TRANSACTION_TYPE','CATEGORY','ACCOUNT_NAME','LABELS','NOTES']]
     st.write('Click on the column to sort by that column')
     st.write(new_df)
     
@@ -384,26 +415,39 @@ if menu =="Load Data into Database":
         
         load_df = pd.read_csv(file_details['filename'])
         load_df['DATE'] = [i.replace("'",'') for i in load_df['DATE']]
+        load_df['DESCRIPTION'] = load_df['DESCRIPTION'].str.replace("'",'')
+        load_df['ORIGINAL_DESCRIPTION'] = load_df['ORIGINAL_DESCRIPTION'].str.replace("'",'')
+        load_df['ACCOUNT_NAME'] = load_df['ACCOUNT_NAME'].str.replace("'",'')
         load_df['TRANSACTION_TYPE'] = [i.replace("'",'') for i in load_df['TRANSACTION_TYPE']]
         load_df['CATEGORY'] = [i.replace("'",'') for i in load_df['CATEGORY']]
-        
-        st.write(load_df)
-        engine = create_engine("mysql+pymysql://root@localhost/test")
-        load_df.to_sql(
-                        name="sample4",
-                        con=engine,
-                        if_exists = 'append',
-                        index=False
-                    )
        
-        st.write('Data Has been added')
-        
-        
-        df = pd.read_sql('select * from sample1',engine)
-     
-        df = df[df.columns[1:]]
-        st.write(df)
-        
+        st.write(load_df)
+        try:
+            conn = connectdb()
+            cur = conn.cursor()
+            cur.execute('select * FROM SAMPLE1 ORDER BY INDEX DESC LIMIT 1')
+            d = cur.fetchall()
+            last_index = d[0][-1]
+            rge = load_df.shape[0]
+
+            load_index = []
+            for k in range(rge):
+                idx = int(k) + 1
+                load_index.append(str(idx))
+
+            load_df['INDEX'] = last_index
+            write_pandas( conn,load_df,'SAMPLE1',database='TEST',schema='PUBLIC')
+
+            st.write('Data Has been added')
+
+
+            df = pd.read_sql('select * from SAMPLE1',conn)
+            conn.close()
+            df['DATE'] = [str(i).split(' ')[0] for i in df['DATE']]
+            df = df[df.columns[1:]]
+            st.write(df)
+        except:
+            st.write('An error occured')
 
 if menu =="Edit Data":
     st.subheader("Edit CSV")
@@ -453,19 +497,23 @@ if menu =="Edit Data":
             
         if len(flag) == 0:
             try:
-                conn = connectdb()
-                query = f"UPDATE sample1 SET DATE = '{date}', AMOUNT = {amount}, TRANSACTION_TYPE = '{trans_type}', CATEGORY = '{category_name}' WHERE ID = {index}"
-                cur = conn.cursor()
-#                 query = f"UPDATE sample1 SET DATE = '05/28/2021', AMOUNT = '1.0', TRANSACTION_TYPE = 'credit', CATEGORY = 'Parking' WHERE id = 0 "
-                #cur.execute(query)
-#                 conn.execute("UPDATE sample1 SET DATE = '05/27/2014', AMOUNT = '1.0', TRANSACTION_TYPE = 'credit', CATEGORY = 'Parking' WHERE ID = 1")
-                #st.write('ireach here')
-                #st.write(query)
-                cur.execute(query)
-                #pd.read_sql(query,conn)
-                conn.commit()
-                conn.close()
-                st.write('Update has been made to the database')
+                try:
+                    conn = connectdb()
+                    query = f"UPDATE sample1 SET DATE = '{date}', AMOUNT = {amount}, TRANSACTION_TYPE = '{trans_type}', CATEGORY = '{category_name}' WHERE INDEX = {index}"
+
+                    cur = conn.cursor()
+    #                 query = f"UPDATE sample1 SET DATE = '05/28/2021', AMOUNT = '1.0', TRANSACTION_TYPE = 'credit', CATEGORY = 'Parking' WHERE id = 0 "
+                    #cur.execute(query)
+    #                 conn.execute("UPDATE sample1 SET DATE = '05/27/2014', AMOUNT = '1.0', TRANSACTION_TYPE = 'credit', CATEGORY = 'Parking' WHERE ID = 1")
+                    #st.write('ireach here')
+                    #st.write(query)
+                    cur.execute(query)
+                    #pd.read_sql(query,conn)
+                    conn.commit()
+                    conn.close()
+                    st.write('Update has been made to the database')
+                except:
+                    st.write('erro establishing a connection to the database')
             except:
                 st.write("index not exist")
             
