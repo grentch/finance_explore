@@ -19,25 +19,41 @@ from snowflake.connector.pandas_tools import write_pandas
 #df = pd.read_csv(file_name)
 #df.to_sql(con=engine, index_label='id', name='sample4', if_exists='replace')
 
-conn = snowflake.connector.connect(
- user='ididntdoit',
- password='Odunayo0',
- account='pp47726.us-east-2.aws',
- database='test',
- #schema= "test_schema"
-)
-print("success in connecting", conn)
+with open('env.txt','r') as r:
+    details = r.read()
+    
+details = eval(details)
 
+conn = snowflake.connector.connect(
+                             user= details['user'],
+                             password=details['password'],
+                             account=details['account'],
+                             database="TEST",
+                             schema= "PUBLIC"
+                            )
+print("success in connecting", conn)
+cur = conn.cursor()
 query = "USE DATABASE TEST"
 cur.execute(query)
 
 query = "USE SCHEMA PUBLIC"
 cur.execute(query)
 
-query = """create table sample2(DATE varchar , DESCRIPTION varchar, ORIGINAL_DESCRIPTION varchar, AMOUNT varchar,
-       TRANSACTION_TYPE varchar, CATEGORY varchar, ACCOUNT_NAME varchar, LABELS varchar, NOTES varchar)"""
+query = "DROP TABLE IF EXISTS sample3"
+cur.execute(query)
+
+
+print('about creating the table')
+query = """create table sample1(DATE varchar(10) , DESCRIPTION varchar(200), ORIGINAL_DESCRIPTION varchar(200), AMOUNT varchar(30),
+       TRANSACTION_TYPE varchar(10), CATEGORY varchar(100), ACCOUNT_NAME varchar(100), LABELS varchar (100), NOTES varchar(100),index varchar(100))"""
 cur.execute(query)
 print('created table')
 
-df = pd.read_csv(r'C:\Users\DELL\Desktop\Code\Streamlit\upwork\upworkGit\finance_explore\sample_file_big.csv')
+df = pd.read_csv('sample_file_big.csv')
 
+df['INDEX'] = df.index
+
+df = df.head(1000)
+
+#SAMPLE1 is the table name
+write_pandas( conn,df,'SAMPLE1',database='TEST',schema='PUBLIC')

@@ -9,13 +9,16 @@ import pymysql
 from sqlalchemy import create_engine
 from snowflake.connector.pandas_tools import write_pandas
 import snowflake.connector
+import sys
 
+try:
+    with open('env.txt','r') as r:
+        details = r.read()
 
-with open('.env.txt','r') as r:
-    details = r.read()
+    details = eval(details)
+except:
+    sys.exit()
     
-details = eval(details)
-
 def connectdb():
     
 #     connection =pymysql.connect(
@@ -76,7 +79,12 @@ yer = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul','Aug','Sept','Oct','Nov',
 
 #read in csv, instead of querying the database
 #df = pd.read_csv('sample1.csv')
-conn = connectdb()
+try:
+    conn = connectdb()
+except:
+    print('error connecting to database')
+    sys.exit()
+    
 df = pd.read_sql('select * from SAMPLE1',conn)
 conn.close()
 #df = df[df.columns[1:]]
@@ -414,30 +422,32 @@ if menu =="Load Data into Database":
         load_df['CATEGORY'] = [i.replace("'",'') for i in load_df['CATEGORY']]
        
         st.write(load_df)
-        conn = connectdb()
-        cur = conn.cursor()
-        cur.execute('select * FROM SAMPLE1 ORDER BY INDEX DESC LIMIT 1')
-        d = cur.fetchall()
-        last_index = d[0][-1]
-        rge = load_df.shape[0]
-        
-        load_index = []
-        for k in range(rge):
-            idx = int(k) + 1
-            load_index.append(str(idx))
-            
-        load_df['INDEX'] = last_index
-        write_pandas( conn,load_df,'SAMPLE1',database='TEST',schema='PUBLIC')
-        
-        st.write('Data Has been added')
-        
-        
-        df = pd.read_sql('select * from SAMPLE1',conn)
-        conn.close()
-        df['DATE'] = [str(i).split(' ')[0] for i in df['DATE']]
-        df = df[df.columns[1:]]
-        st.write(df)
-        
+        try:
+            conn = connectdb()
+            cur = conn.cursor()
+            cur.execute('select * FROM SAMPLE1 ORDER BY INDEX DESC LIMIT 1')
+            d = cur.fetchall()
+            last_index = d[0][-1]
+            rge = load_df.shape[0]
+
+            load_index = []
+            for k in range(rge):
+                idx = int(k) + 1
+                load_index.append(str(idx))
+
+            load_df['INDEX'] = last_index
+            write_pandas( conn,load_df,'SAMPLE1',database='TEST',schema='PUBLIC')
+
+            st.write('Data Has been added')
+
+
+            df = pd.read_sql('select * from SAMPLE1',conn)
+            conn.close()
+            df['DATE'] = [str(i).split(' ')[0] for i in df['DATE']]
+            df = df[df.columns[1:]]
+            st.write(df)
+        except:
+            st.write('An error occured')
 
 if menu =="Edit Data":
     st.subheader("Edit CSV")
@@ -487,19 +497,23 @@ if menu =="Edit Data":
             
         if len(flag) == 0:
             try:
-                conn = connectdb()
-                query = f"UPDATE sample1 SET DATE = '{date}', AMOUNT = {amount}, TRANSACTION_TYPE = '{trans_type}', CATEGORY = '{category_name}' WHERE INDEX = {index}"
-                cur = conn.cursor()
-#                 query = f"UPDATE sample1 SET DATE = '05/28/2021', AMOUNT = '1.0', TRANSACTION_TYPE = 'credit', CATEGORY = 'Parking' WHERE id = 0 "
-                #cur.execute(query)
-#                 conn.execute("UPDATE sample1 SET DATE = '05/27/2014', AMOUNT = '1.0', TRANSACTION_TYPE = 'credit', CATEGORY = 'Parking' WHERE ID = 1")
-                #st.write('ireach here')
-                #st.write(query)
-                cur.execute(query)
-                #pd.read_sql(query,conn)
-                conn.commit()
-                conn.close()
-                st.write('Update has been made to the database')
+                try:
+                    conn = connectdb()
+                    query = f"UPDATE sample1 SET DATE = '{date}', AMOUNT = {amount}, TRANSACTION_TYPE = '{trans_type}', CATEGORY = '{category_name}' WHERE INDEX = {index}"
+
+                    cur = conn.cursor()
+    #                 query = f"UPDATE sample1 SET DATE = '05/28/2021', AMOUNT = '1.0', TRANSACTION_TYPE = 'credit', CATEGORY = 'Parking' WHERE id = 0 "
+                    #cur.execute(query)
+    #                 conn.execute("UPDATE sample1 SET DATE = '05/27/2014', AMOUNT = '1.0', TRANSACTION_TYPE = 'credit', CATEGORY = 'Parking' WHERE ID = 1")
+                    #st.write('ireach here')
+                    #st.write(query)
+                    cur.execute(query)
+                    #pd.read_sql(query,conn)
+                    conn.commit()
+                    conn.close()
+                    st.write('Update has been made to the database')
+                except:
+                    st.write('erro establishing a connection to the database')
             except:
                 st.write("index not exist")
             
