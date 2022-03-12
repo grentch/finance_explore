@@ -39,7 +39,7 @@ cur.execute(query)
 query = "USE SCHEMA PUBLIC"
 cur.execute(query)
 
-query = "DROP TABLE IF EXISTS sample3"
+query = "DROP TABLE IF EXISTS sample1"
 cur.execute(query)
 
 
