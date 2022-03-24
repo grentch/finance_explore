@@ -1,0 +1,1 @@
+Run the sql file to create the databas and table required for the xampp to run
