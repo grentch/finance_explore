@@ -11,7 +11,8 @@ def connectdb():
                                  password=parser.get('SNOWFLAKE DATABASE Details','password'),
                                  account=parser.get('SNOWFLAKE DATABASE Details','account'),
                                  database=parser.get('SNOWFLAKE DATABASE Details','database'),
-                                 schema=parser.get('SNOWFLAKE DATABASE Details','schema')
+                                 schema=parser.get('SNOWFLAKE DATABASE Details','schema'),
+                                 #table=parser.get('SNOWFLAKE DATABASE Details','table')
                                 )
     print("success in connecting", conn)
    

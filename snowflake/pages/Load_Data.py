@@ -7,7 +7,7 @@ import plotly.express as px
 import pymysql
 from sqlalchemy import create_engine
 from snowflake.connector.pandas_tools import write_pandas
-from pages import Connect_Db
+from pages import Connect_Db, table
 
 class load_data():
     
@@ -39,8 +39,14 @@ class load_data():
                     #st.write('i got here')
                     conn = Connect_Db.connectdb()
                     cur = conn.cursor()
+                    table_name = table.table()
+                    
+                    query = f'select * from {table_name} ORDER BY INDEX DESC LIMIT 1'
 
-                    cur.execute('select * FROM SAMPLE2 ORDER BY INDEX DESC LIMIT 1')
+                    cur.execute(query)
+                    
+                    #names = [ x[0] for x in cur.description]
+                    
                     d = cur.fetchall()
                     if len(d) <1:
                         last_index = -1
@@ -55,13 +61,20 @@ class load_data():
                         last_index = idx
 
                     load_df['INDEX'] = load_index
-
-                    write_pandas( conn,load_df,'SAMPLE2',database='TEST',schema='PUBLIC')
+                    
+                    write_pandas( conn,load_df,table_name)
 
                     st.write('Data Has been added')
 
+                    
+                    query = f'select * from {table_name}'
+                    cur.execute(query)
 
-                    df = pd.read_sql('select * from SAMPLE1',conn)
+                    names = [ x[0] for x in cur.description]
+                    rows = cur.fetchall()
+
+                    df = pd.DataFrame( rows, columns=names)
+                    #df = pd.read_sql('select * from SAMPLE1',conn)
                     conn.close()
                     df['DATE'] = [str(i).split(' ')[0] for i in df['DATE']]
                     df = df[df.columns[1:]]
