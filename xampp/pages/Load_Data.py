@@ -6,23 +6,25 @@ import datetime
 import plotly.express as px
 import pymysql
 from sqlalchemy import create_engine
-from pages import Connect_Db
+from pages import Connect_Db, table
 
 class load_data():
     
     def app(self):
         st.subheader("Load CSV")
         csv_file = st.file_uploader("Upload file", type=["csv"])
-
+        table_name = table.table()
+        #st.write(table_name)
         if csv_file is not None:
 
             # To See details
             file_details = {"filename":csv_file.name, "filetype":csv_file.type,
                           "filesize":csv_file.size}
-
+            
             try:
                 
                 load_df = pd.read_csv(file_details['filename'])
+                #st.write('i got here')
                 load_df = load_df[['DATE', 'DESCRIPTION', 'ORIGINAL_DESCRIPTION', 'AMOUNT',
            'TRANSACTION_TYPE', 'CATEGORY', 'ACCOUNT_NAME', 'LABELS', 'NOTES']]
                 #st.write('hello')
@@ -37,13 +39,16 @@ class load_data():
                 try:
                     conn = Connect_Db.connectdb()
                     cur = conn.cursor()
-
+                    
+                    
                     for l in load_df.values:
                         #st.write('hello')
                         val = list(l)
                         val = str(val).replace('[','(').replace(']',')')
-                        query = f"INSERT INTO sample1 (`DATE`, `DESCRIPTION`, `ORIGINAL_DESCRIPTION`, `AMOUNT`, `TRANSACTION_TYPE`, `CATEGORY`, `ACCOUNT_NAME`, `LABELS`, `NOTES`) VALUES{val}"
+                        
+                        query = f"INSERT INTO {table_name} (`DATE`, `DESCRIPTION`, `ORIGINAL_DESCRIPTION`, `AMOUNT`, `TRANSACTION_TYPE`, `CATEGORY`, `ACCOUNT_NAME`, `LABELS`, `NOTES`) VALUES{val}"
                         #st.write(query)
+                        print(query)
                         cur.execute(query)
                         conn.commit()
 

@@ -6,7 +6,7 @@ import datetime
 import plotly.express as px
 import pymysql
 from sqlalchemy import create_engine
-from pages import Connect_Db
+from pages import Connect_Db, table
 
 class explore_raw():
     def get_month_difference(self):
@@ -92,7 +92,9 @@ class explore_raw():
         st.write('Explore Raw Data Page')
         try:
             conn = Connect_Db.connectdb()
-            self.df = pd.read_sql('select * from SAMPLE1',conn)
+            table_name = table.table()
+            query = f'select * from {table_name}'
+            self.df = pd.read_sql(query,conn)
             conn.close()
             #preprocess the columns
             self.df['CATEGORY'] = self.df['CATEGORY'].str.replace("'",'')
